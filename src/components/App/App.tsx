@@ -7,7 +7,17 @@ import MovieGrid from "../MovieGrid/MovieGrid";
 import Loader from "../Loader/Loader";
 import MovieModal from "../MovieModal/MovieModal";
 import ErrorMessage from "../ErrorMessage/ErrorMessage";
-import Pagination from "../ReactPaginate/ReactPaginate";
+import ReactPaginateModule from "react-paginate";
+import type { ReactPaginateProps } from "react-paginate";
+import type { ComponentType } from "react";
+import css from "./App.module.css";
+type ModuleWithDefault<T> = { default: T };
+const ReactPaginate = (
+  ReactPaginateModule as unknown as ModuleWithDefault<
+    ComponentType<ReactPaginateProps>
+  >
+).default;
+
 import type { Movie } from "../../types/movie";
 import { fetchMovies } from "../../services/movieService";
 import type { TmdbSearchMovieResponse } from "../../services/movieService";
@@ -27,7 +37,6 @@ export default function App() {
     queryKey: ["movies", searchQuery, currentPage],
     queryFn: async () => {
       const response = await fetchMovies(searchQuery, currentPage);
-      // Якщо сервіс повернув null/undefined, повертаємо дефолтну структуру
       if (!response) {
         return {
           results: [],
@@ -46,7 +55,6 @@ export default function App() {
   const movies = data?.results || [];
   const totalPages = data?.total_pages || 0;
 
-  // Ефект для обробки помилок мережі або сервера
   useEffect(() => {
     if (isError && error) {
       toast.error(error.message);
@@ -54,29 +62,37 @@ export default function App() {
   }, [isError, error]);
 
   useEffect(() => {
-    if (isSuccess && movies.length === 0) {
+    if (isSuccess && movies.length === 0 && searchQuery.trim().length > 0) {
       toast.error("No movies found for your request.");
     }
-  }, [isSuccess, movies.length]);
+  }, [isSuccess, movies.length, searchQuery]);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
     setCurrentPage(1);
   };
 
+  const hasQuery = searchQuery.trim().length > 0;
+
   return (
     <>
       <SearchBar onSubmit={handleSearch} />
 
       {!isError && totalPages > 1 && (
-        <Pagination
-          totalPages={totalPages}
-          currentPage={currentPage}
-          onPageChange={setCurrentPage}
+        <ReactPaginate
+          pageCount={totalPages}
+          pageRangeDisplayed={5}
+          marginPagesDisplayed={1}
+          onPageChange={({ selected }) => setCurrentPage(selected + 1)}
+          forcePage={currentPage - 1}
+          containerClassName={css.pagination}
+          activeClassName={css.active}
+          nextLabel="→"
+          previousLabel="←"
         />
       )}
 
-      {isFetching && <Loader />}
+      {hasQuery && isFetching && <Loader />}
 
       {isError ? (
         <ErrorMessage />
